@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 5)
       .map(([artistId]) => artistId)
 
-    let recommendedTracks = []
+    let recommendedTracks: any[] = []
 
     // 4. 如果有用户偏好，基于偏好推荐（70%）
     if (preferredArtists.length > 0) {
