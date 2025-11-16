@@ -28,6 +28,7 @@ export default function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [fetchingMusic, setFetchingMusic] = useState(false)
 
   // 初始化
   useEffect(() => {
@@ -97,23 +98,67 @@ export default function HomePage() {
     }
   }, [userId, currentTrack, sessionId])
 
+  // 获取实时音乐链接
+  const fetchRealMusicUrl = useCallback(async (track: Track): Promise<string | null> => {
+    if (!track.title || !track.artist?.name) return null
+
+    setFetchingMusic(true)
+    try {
+      const query = `${track.title} ${track.artist.name}`
+      const response = await fetch(`/api/music?q=${encodeURIComponent(query)}`)
+      const data = await response.json()
+
+      if (data.success && data.url) {
+        return data.url
+      }
+      return null
+    } catch (err) {
+      console.error('Failed to fetch music URL:', err)
+      return null
+    } finally {
+      setFetchingMusic(false)
+    }
+  }, [])
+
+  const handleNext = useCallback(() => {
+    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id)
+    if (currentIndex !== -1 && currentIndex + 1 < queue.length) {
+      setCurrentTrack(queue[currentIndex + 1])
+      setQueue(prev => prev.slice(currentIndex + 1))
+      recordEvent('complete')
+    }
+  }, [queue, currentTrack, recordEvent])
+
   // 播放控制
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !currentTrack) return
 
-    audio.src = currentTrack.audio_url
-    audio.load()
+    const loadAndPlay = async () => {
+      // 获取实时音乐链接
+      const realUrl = await fetchRealMusicUrl(currentTrack)
 
-    const playPromise = audio.play()
-    if (playPromise) {
-      playPromise
-        .then(() => {
-          setIsPlaying(true)
-          recordEvent('play')
-        })
-        .catch(() => setIsPlaying(false))
+      if (!realUrl) {
+        console.error('Failed to get music URL for:', currentTrack.title)
+        handleNext()
+        return
+      }
+
+      audio.src = realUrl
+      audio.load()
+
+      const playPromise = audio.play()
+      if (playPromise) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true)
+            recordEvent('play')
+          })
+          .catch(() => setIsPlaying(false))
+      }
     }
+
+    loadAndPlay()
 
     const updateTime = () => setCurrentTime(audio.currentTime)
     const updateDuration = () => setDuration(audio.duration)
@@ -128,7 +173,7 @@ export default function HomePage() {
       audio.removeEventListener('loadedmetadata', updateDuration)
       audio.removeEventListener('ended', handleEnd)
     }
-  }, [currentTrack])
+  }, [currentTrack, fetchRealMusicUrl, handleNext, recordEvent])
 
   const togglePlay = () => {
     const audio = audioRef.current
@@ -139,15 +184,6 @@ export default function HomePage() {
     } else {
       audio.play()
       setIsPlaying(true)
-    }
-  }
-
-  const handleNext = () => {
-    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id)
-    if (currentIndex !== -1 && currentIndex + 1 < queue.length) {
-      setCurrentTrack(queue[currentIndex + 1])
-      setQueue(prev => prev.slice(currentIndex + 1))
-      recordEvent('complete')
     }
   }
 
@@ -263,19 +299,19 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* 主体内容 - 3列布局 */}
-      <div className="grid grid-cols-[450px_1fr_400px] gap-4 p-4 h-[calc(100vh-120px)]">
-        {/* 左侧：播放器 + 播放列表 */}
-        <div className="flex flex-col gap-3">
+      {/* 主体内容 - 单列布局（只保留播放列表） */}
+      <div className="flex justify-center p-4 h-[calc(100vh-120px)]">
+        {/* 播放器 + 播放列表 */}
+        <div className="flex flex-col gap-3 w-full max-w-[600px]">
           {/* 播放器 */}
           <div className="yige-player">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={togglePlay} className="yige-player-btn text-base">
-                {isPlaying ? '⏸' : '▶'}
+              <button onClick={togglePlay} className="yige-player-btn text-base" disabled={fetchingMusic}>
+                {fetchingMusic ? '⏳' : isPlaying ? '⏸' : '▶'}
               </button>
               <button onClick={handleNext} className="yige-player-btn text-sm">⏭</button>
               <div className="flex-1 text-[10px]">
-                {formatDuration(currentTime)} / {formatDuration(duration)}
+                {fetchingMusic ? '正在获取音乐链接...' : `${formatDuration(currentTime)} / ${formatDuration(duration)}`}
               </div>
               <button className="text-sm opacity-70 hover:opacity-100">🔊</button>
             </div>
@@ -292,6 +328,39 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* 当前播放信息 */}
+          {currentTrack && (
+            <div className="yige-panel">
+              <div className="yige-panel-header">
+                正在播放
+              </div>
+              <div className="p-3 flex items-center gap-3">
+                <img
+                  src={currentTrack.cover_url || 'https://picsum.photos/80'}
+                  alt={currentTrack.title}
+                  className="w-20 h-20 rounded shadow"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold truncate">{currentTrack.title}</h3>
+                  <p className="text-[10px] opacity-70 truncate">{currentTrack.artist?.name}</p>
+                  {currentTrack.album && <p className="text-[10px] opacity-50 truncate mt-1">{currentTrack.album}</p>}
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={handleLock} className="yige-btn text-xs" title="锁定">🔒</button>
+                  <button
+                    onClick={handleFavorite}
+                    className="yige-btn text-xs"
+                    title={favorites.some(f => f.id === currentTrack.id) ? "取消收藏" : "收藏"}
+                  >
+                    {favorites.some(f => f.id === currentTrack.id) ? '⭐' : '☆'}
+                  </button>
+                  <button onClick={handleSkip} className="yige-btn text-xs" title="跳过">⏭</button>
+                  <button onClick={handleBlacklist} className="yige-btn text-xs" title="黑名单">❌</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 播放列表 */}
           <div className="flex-1 yige-panel">
             <div className="yige-panel-header">
@@ -300,6 +369,7 @@ export default function HomePage() {
             <div className="overflow-y-auto h-[calc(100%-28px)]">
               {queue.slice(0, 20).map((track, index) => {
                 const isCurrent = track.id === currentTrack?.id
+                const isFavorite = favorites.some(f => f.id === track.id)
                 return (
                   <div
                     key={`${track.id}-${index}`}
@@ -309,94 +379,11 @@ export default function HomePage() {
                     <span className="w-4 text-center opacity-50 text-[10px]">{isCurrent ? '▶' : index + 1}</span>
                     <span className="flex-1 truncate">{track.title}</span>
                     <span className="text-[10px] opacity-60 whitespace-nowrap">{track.artist?.name}</span>
-                    {isCurrent && (
-                      <div className="flex gap-0.5 ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); handleLock(); }} className="yige-icon-btn" title="锁定">🔒</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleFavorite(); }} className="yige-icon-btn" title="收藏">⭐</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleBlacklist(); }} className="yige-icon-btn" title="删除">❌</button>
-                      </div>
-                    )}
+                    {isFavorite && <span className="text-[10px]">⭐</span>}
                   </div>
                 )
               })}
             </div>
-          </div>
-        </div>
-
-        {/* 中间：播放区 */}
-        <div className="yige-panel">
-          <div className="yige-panel-header">
-            播放区
-          </div>
-          <div className="p-4">
-            {currentTrack ? (
-              <div className="space-y-3">
-                <div className="text-center">
-                  <img
-                    src={currentTrack.cover_url || 'https://picsum.photos/200'}
-                    alt={currentTrack.title}
-                    className="w-48 h-48 mx-auto rounded shadow-lg"
-                  />
-                  <h2 className="text-lg font-bold mt-4">{currentTrack.title}</h2>
-                  <p className="text-xs opacity-70">{currentTrack.artist?.name}</p>
-                  {currentTrack.album && <p className="text-[10px] opacity-50 mt-1">{currentTrack.album}</p>}
-                </div>
-                <div className="flex gap-2 justify-center mt-4">
-                  <button onClick={handleLock} className="yige-btn">
-                    🔒 锁定
-                  </button>
-                  <button onClick={handleFavorite} className="yige-btn">
-                    ⭐ 收藏
-                  </button>
-                  <button onClick={handleSkip} className="yige-btn">
-                    ⏭ 跳过
-                  </button>
-                  <button onClick={handleBlacklist} className="yige-btn">
-                    ❌ 黑名单
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-xs opacity-50 py-20">
-                暂无播放内容
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 右侧：我的收藏 */}
-        <div className="yige-panel">
-          <div className="yige-panel-header">
-            我的收藏 ({favorites.length})
-          </div>
-          <div className="overflow-y-auto h-[calc(100%-28px)]">
-            {favorites.length === 0 ? (
-              <div className="text-center text-[10px] opacity-50 py-10">
-                暂无收藏
-              </div>
-            ) : (
-              favorites.map((track) => (
-                <div
-                  key={track.id}
-                  className="yige-list-item cursor-pointer flex items-center gap-1"
-                  onClick={() => handleTrackClick(track)}
-                >
-                  <span className="flex-1 truncate">{track.title}</span>
-                  <span className="text-[10px] opacity-60 whitespace-nowrap">{track.artist?.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (currentTrack?.id === track.id) {
-                        handleFavorite()
-                      }
-                    }}
-                    className="yige-icon-btn"
-                  >
-                    ➕
-                  </button>
-                </div>
-              ))
-            )}
           </div>
         </div>
       </div>
