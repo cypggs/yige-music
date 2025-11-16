@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // 4. 如果有用户偏好，基于偏好推荐（70%）
     if (preferredArtists.length > 0) {
-      const { data: preferredTracks } = await supabase
+      let query = supabase
         .from('tracks')
         .select(`
           id,
@@ -61,7 +61,13 @@ export async function GET(request: NextRequest) {
           artist:artists(*)
         `)
         .in('artist_id', preferredArtists)
-        .not('artist_id', 'in', `(${blacklistedArtistIds.join(',') || 'null'})`)
+
+      // 只有当黑名单不为空时才应用过滤
+      if (blacklistedArtistIds.length > 0) {
+        query = query.not('artist_id', 'in', `(${blacklistedArtistIds.join(',')})`)
+      }
+
+      const { data: preferredTracks } = await query
         .order('popularity', { ascending: false })
         .limit(Math.floor(count * 0.7))
 
@@ -71,7 +77,7 @@ export async function GET(request: NextRequest) {
     // 5. 补充热门歌曲（30% 或全部，如果没有用户偏好）
     const remainingCount = count - recommendedTracks.length
     if (remainingCount > 0) {
-      const { data: popularTracks } = await supabase
+      let query = supabase
         .from('tracks')
         .select(`
           id,
@@ -87,7 +93,13 @@ export async function GET(request: NextRequest) {
           popularity,
           artist:artists(*)
         `)
-        .not('artist_id', 'in', `(${blacklistedArtistIds.join(',') || 'null'})`)
+
+      // 只有当黑名单不为空时才应用过滤
+      if (blacklistedArtistIds.length > 0) {
+        query = query.not('artist_id', 'in', `(${blacklistedArtistIds.join(',')})`)
+      }
+
+      const { data: popularTracks } = await query
         .order('popularity', { ascending: false })
         .limit(remainingCount * 2) // 多获取一些，用于过滤
 
