@@ -213,40 +213,40 @@ export default function HomePage() {
       <audio ref={audioRef} />
 
       {/* 顶部用户区 */}
-      <div className="flex items-center justify-between px-6 py-2" style={{ background: currentTheme.headerBg, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
+      <div className="flex items-center justify-between px-6 py-2 text-xs" style={{ background: currentTheme.headerBg, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">亦歌</h1>
-          <span className="text-xs opacity-60">Beta</span>
+          <h1 className="text-lg font-bold">亦歌</h1>
+          <span className="text-[10px] opacity-60">Beta</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm">欢迎您</span>
-          <span className="text-sm opacity-60">帮助</span>
+          <span>欢迎您</span>
+          <span className="opacity-60 cursor-pointer hover:opacity-100">帮助</span>
           <div className="flex gap-1">
-            <button onClick={() => setTheme('lightblue')} className="w-5 h-5 rounded" style={{ background: '#5fb7d4' }} title="淡蓝" />
-            <button onClick={() => setTheme('red')} className="w-5 h-5 rounded" style={{ background: '#e57373' }} title="红色" />
-            <button onClick={() => setTheme('blue')} className="w-5 h-5 rounded" style={{ background: '#42a5f5' }} title="蓝色" />
-            <button onClick={() => setTheme('black')} className="w-5 h-5 rounded" style={{ background: '#2a2a2a' }} title="黑色" />
+            <button onClick={() => {setTheme('lightblue'); localStorage.setItem('yige_theme', 'lightblue')}} className="theme-btn" style={{ background: '#5fb7d4' }} title="淡蓝" />
+            <button onClick={() => {setTheme('red'); localStorage.setItem('yige_theme', 'red')}} className="theme-btn" style={{ background: '#e57373' }} title="红色" />
+            <button onClick={() => {setTheme('blue'); localStorage.setItem('yige_theme', 'blue')}} className="theme-btn" style={{ background: '#42a5f5' }} title="蓝色" />
+            <button onClick={() => {setTheme('black'); localStorage.setItem('yige_theme', 'black')}} className="theme-btn" style={{ background: '#2a2a2a' }} title="黑色" />
           </div>
         </div>
       </div>
 
       {/* 导航栏 */}
-      <div className="flex items-center gap-6 px-6 py-3" style={{ background: currentTheme.headerBg, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
+      <div className="flex items-center gap-6 px-6 py-2 text-xs" style={{ background: currentTheme.headerBg, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
         <button
           onClick={() => setCurrentTab('hot')}
-          className={`flex items-center gap-2 text-sm ${currentTab === 'hot' ? 'font-bold' : ''}`}
+          className={`yige-tab ${currentTab === 'hot' ? 'active' : ''}`}
         >
           <span>🎵</span> 百度热门
         </button>
         <button
           onClick={() => setCurrentTab('favorites')}
-          className={`flex items-center gap-2 text-sm ${currentTab === 'favorites' ? 'font-bold' : ''}`}
+          className={`yige-tab ${currentTab === 'favorites' ? 'active' : ''}`}
         >
           <span>⭐</span> 我的收藏 ({favorites.length})
         </button>
         <button
           onClick={() => setCurrentTab('recent')}
-          className={`flex items-center gap-2 text-sm ${currentTab === 'recent' ? 'font-bold' : ''}`}
+          className={`yige-tab ${currentTab === 'recent' ? 'active' : ''}`}
         >
           <span>🔄</span> 刚刚听过
         </button>
@@ -256,10 +256,9 @@ export default function HomePage() {
           placeholder="搜索"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="px-3 py-1 text-sm border rounded"
-          style={{ background: 'white', borderColor: 'rgba(0,0,0,0.2)' }}
+          className="yige-input"
         />
-        <button className="px-3 py-1 text-sm rounded" style={{ background: '#4285f4', color: 'white' }}>
+        <button className="yige-btn">
           搜索
         </button>
       </div>
@@ -269,59 +268,52 @@ export default function HomePage() {
         {/* 左侧：播放器 + 播放列表 */}
         <div className="flex flex-col gap-3">
           {/* 播放器 */}
-          <div className="rounded-lg p-4" style={{ background: '#2d3e50', color: 'white' }}>
-            <div className="flex items-center gap-3 mb-3">
-              <button onClick={togglePlay} className="w-10 h-10 flex items-center justify-center rounded" style={{ background: 'rgba(255,255,255,0.2)' }}>
+          <div className="yige-player">
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={togglePlay} className="yige-player-btn text-base">
                 {isPlaying ? '⏸' : '▶'}
               </button>
-              <button onClick={handleNext} className="w-8 h-8 flex items-center justify-center">⏭</button>
-              <div className="flex-1 text-xs">
+              <button onClick={handleNext} className="yige-player-btn text-sm">⏭</button>
+              <div className="flex-1 text-[10px]">
                 {formatDuration(currentTime)} / {formatDuration(duration)}
               </div>
-              <button className="text-xs">🔊</button>
+              <button className="text-sm opacity-70 hover:opacity-100">🔊</button>
             </div>
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={(e) => {
-                const audio = audioRef.current
-                if (audio) {
-                  audio.currentTime = parseFloat(e.target.value)
-                }
-              }}
-              className="w-full h-1 rounded"
-              style={{ accentColor: '#4285f4' }}
-            />
+            <div className="yige-progress" onClick={(e) => {
+              const audio = audioRef.current
+              if (audio && duration) {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const x = e.clientX - rect.left
+                const percent = x / rect.width
+                audio.currentTime = duration * percent
+              }
+            }}>
+              <div className="yige-progress-bar" style={{ width: `${(currentTime / duration) * 100}%` }}></div>
+            </div>
           </div>
 
           {/* 播放列表 */}
-          <div className="flex-1 rounded-lg overflow-hidden" style={{ background: 'white', border: '1px solid rgba(0,0,0,0.1)' }}>
-            <div className="p-2 font-bold text-sm border-b" style={{ background: 'rgba(0,0,0,0.05)' }}>
+          <div className="flex-1 yige-panel">
+            <div className="yige-panel-header">
               播放列表 ({queue.length})
             </div>
-            <div className="overflow-y-auto h-[calc(100%-36px)]">
-              {queue.slice(0, 15).map((track, index) => {
+            <div className="overflow-y-auto h-[calc(100%-28px)]">
+              {queue.slice(0, 20).map((track, index) => {
                 const isCurrent = track.id === currentTrack?.id
                 return (
                   <div
                     key={`${track.id}-${index}`}
                     onClick={() => handleTrackClick(track)}
-                    className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-50 border-b"
-                    style={{
-                      background: isCurrent ? currentTheme.highlight : 'transparent',
-                      borderColor: 'rgba(0,0,0,0.05)'
-                    }}
+                    className={`yige-list-item cursor-pointer flex items-center gap-1 ${isCurrent ? 'active' : ''}`}
                   >
-                    <span className="w-4 text-center opacity-50">{isCurrent ? '▶' : index + 1}</span>
-                    <span className="flex-1 truncate font-medium">{track.title}</span>
-                    <span className="text-[10px] opacity-60">{track.artist?.name}</span>
+                    <span className="w-4 text-center opacity-50 text-[10px]">{isCurrent ? '▶' : index + 1}</span>
+                    <span className="flex-1 truncate">{track.title}</span>
+                    <span className="text-[10px] opacity-60 whitespace-nowrap">{track.artist?.name}</span>
                     {isCurrent && (
-                      <div className="flex gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); handleLock(); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/50 rounded" title="锁定">🔒</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleFavorite(); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/50 rounded" title="收藏">⭐</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleBlacklist(); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/50 rounded" title="删除">❌</button>
+                      <div className="flex gap-0.5 ml-1">
+                        <button onClick={(e) => { e.stopPropagation(); handleLock(); }} className="yige-icon-btn" title="锁定">🔒</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleFavorite(); }} className="yige-icon-btn" title="收藏">⭐</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleBlacklist(); }} className="yige-icon-btn" title="删除">❌</button>
                       </div>
                     )}
                   </div>
@@ -332,8 +324,8 @@ export default function HomePage() {
         </div>
 
         {/* 中间：播放区 */}
-        <div className="rounded-lg overflow-hidden" style={{ background: 'white', border: '1px solid rgba(0,0,0,0.1)' }}>
-          <div className="p-3 font-bold text-sm border-b" style={{ background: 'rgba(0,0,0,0.05)' }}>
+        <div className="yige-panel">
+          <div className="yige-panel-header">
             播放区
           </div>
           <div className="p-4">
@@ -345,27 +337,27 @@ export default function HomePage() {
                     alt={currentTrack.title}
                     className="w-48 h-48 mx-auto rounded shadow-lg"
                   />
-                  <h2 className="text-xl font-bold mt-4">{currentTrack.title}</h2>
-                  <p className="text-sm opacity-70">{currentTrack.artist?.name}</p>
-                  {currentTrack.album && <p className="text-xs opacity-50 mt-1">{currentTrack.album}</p>}
+                  <h2 className="text-lg font-bold mt-4">{currentTrack.title}</h2>
+                  <p className="text-xs opacity-70">{currentTrack.artist?.name}</p>
+                  {currentTrack.album && <p className="text-[10px] opacity-50 mt-1">{currentTrack.album}</p>}
                 </div>
                 <div className="flex gap-2 justify-center mt-4">
-                  <button onClick={handleLock} className="px-4 py-2 text-sm rounded" style={{ background: '#4285f4', color: 'white' }}>
+                  <button onClick={handleLock} className="yige-btn">
                     🔒 锁定
                   </button>
-                  <button onClick={handleFavorite} className="px-4 py-2 text-sm rounded" style={{ background: '#34a853', color: 'white' }}>
+                  <button onClick={handleFavorite} className="yige-btn">
                     ⭐ 收藏
                   </button>
-                  <button onClick={handleSkip} className="px-4 py-2 text-sm rounded" style={{ background: '#ea4335', color: 'white' }}>
+                  <button onClick={handleSkip} className="yige-btn">
                     ⏭ 跳过
                   </button>
-                  <button onClick={handleBlacklist} className="px-4 py-2 text-sm rounded" style={{ background: '#666', color: 'white' }}>
+                  <button onClick={handleBlacklist} className="yige-btn">
                     ❌ 黑名单
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="text-center text-sm opacity-50 py-20">
+              <div className="text-center text-xs opacity-50 py-20">
                 暂无播放内容
               </div>
             )}
@@ -373,26 +365,33 @@ export default function HomePage() {
         </div>
 
         {/* 右侧：我的收藏 */}
-        <div className="rounded-lg overflow-hidden" style={{ background: 'white', border: '1px solid rgba(0,0,0,0.1)' }}>
-          <div className="p-2 font-bold text-sm border-b" style={{ background: 'rgba(0,0,0,0.05)' }}>
+        <div className="yige-panel">
+          <div className="yige-panel-header">
             我的收藏 ({favorites.length})
           </div>
-          <div className="overflow-y-auto h-[calc(100%-36px)]">
+          <div className="overflow-y-auto h-[calc(100%-28px)]">
             {favorites.length === 0 ? (
-              <div className="text-center text-xs opacity-50 py-10">
+              <div className="text-center text-[10px] opacity-50 py-10">
                 暂无收藏
               </div>
             ) : (
-              favorites.map((track, index) => (
+              favorites.map((track) => (
                 <div
                   key={track.id}
-                  className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-50 border-b"
-                  style={{ borderColor: 'rgba(0,0,0,0.05)' }}
+                  className="yige-list-item cursor-pointer flex items-center gap-1"
                   onClick={() => handleTrackClick(track)}
                 >
-                  <span className="flex-1 truncate font-medium">{track.title}</span>
-                  <span className="text-[10px] opacity-60">{track.artist?.name}</span>
-                  <button onClick={(e) => { e.stopPropagation(); handleFavorite(); }} className="w-5 h-5 flex items-center justify-center hover:bg-gray-100 rounded">
+                  <span className="flex-1 truncate">{track.title}</span>
+                  <span className="text-[10px] opacity-60 whitespace-nowrap">{track.artist?.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (currentTrack?.id === track.id) {
+                        handleFavorite()
+                      }
+                    }}
+                    className="yige-icon-btn"
+                  >
                     ➕
                   </button>
                 </div>
