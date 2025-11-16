@@ -3,14 +3,14 @@
 // 音乐播放器组件 - 亦歌核心组件
 
 import { useEffect, useRef, useState } from 'react'
-import type { Track } from '@/lib/types'
+import type { Track, UserAction } from '@/lib/types'
 import { getUserId, getSessionId, formatDuration } from '@/lib/utils'
 
 interface MusicPlayerProps {
   currentTrack: Track | null
   queue: Track[]
   onTrackEnd: () => void
-  onEvent: (action: string, playDuration?: number) => void
+  onEvent: (action: UserAction, playDuration?: number) => void
 }
 
 export default function MusicPlayer({
