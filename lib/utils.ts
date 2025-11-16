@@ -1,7 +1,5 @@
 // 工具函数
 
-import { v4 as uuidv4 } from 'uuid'
-
 /**
  * 获取或生成用户 ID（基于浏览器指纹）
  */
